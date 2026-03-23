@@ -1,0 +1,14 @@
+.DS_Store
+
+# env
+.env
+
+# firebase
+auth-server/firebase/config.json
+auth-server/firebase/*-firebase-adminsdk-*.json
+
+# fastify
+node_modules/
+
+# tests
+test*/
