@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "666753152642",
+    "project_id": "maruphoto-df48a",
+    "storage_bucket": "maruphoto-df48a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:666753152642:android:17514969947237aeb4669b",
+        "android_client_info": {
+          "package_name": "com.maruwtc.maruphoto"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "666753152642-k48omo9mq4r9811hjen409i2hg59b564.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.maruwtc.maruphoto",
+            "certificate_hash": "70225030d2d597a79e108f393a3e559f100ddf0a"
+          }
+        },
+        {
+          "client_id": "666753152642-s8emq9plt25j10pc639hfuvi5ci356dp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBfUCTGmVRjjtb9hPpodBU0hpO-TkY23uM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "666753152642-s8emq9plt25j10pc639hfuvi5ci356dp.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "666753152642-rul58d71tcc4lmc6ocge0m4b4rp53m58.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.maruwtc.maruphoto"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

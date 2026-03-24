@@ -1,45 +1,41 @@
 # Mobile App
 
-The mobile app should behave like a backup client, not a storage client.
+Flutter client scaffold for MaruPhoto.
 
-## Responsibilities
+## Current state
 
-- sign in with Google using Firebase Auth
-- send Firebase ID token to your auth server
-- request permission to read photos from the device
-- detect new local assets
-- upload in background with retry and resume
-- show gallery using your backend API
+The Flutter app now includes:
 
-## Things the app should never know
+- Material 3 / Google-style visual direction
+- app shell with Library, Backups, and Account tabs
+- Firebase Google sign-in flow wiring
+- backend app session exchange
+- backend device registration
+- Microsoft storage status fetch
+- asset list fetch from the auth server
+- backup queue UI scaffold
 
-- Microsoft tenant details
-- Graph tokens
-- SharePoint site ids
-- OneDrive user account identity
+## Not finished yet
 
-## Backup loop
+- native Firebase platform setup files
+- deep-link handling for Microsoft OAuth callback inside Flutter
+- file picker and real background upload worker
+- local persistence and offline cache
+- thumbnail rendering from real asset URLs
 
-1. Sign in with Google through Firebase Auth
-2. Exchange Firebase ID token at `POST /v1/auth/firebase`
-3. Fetch local photo list from the device photo library
-4. Compare with server backup cursor or local upload state
-5. Call `POST /v1/uploads/initiate`
-6. Upload chunks to `PUT /v1/uploads/{uploadId}/chunk`
-7. Call `POST /v1/uploads/complete`
-8. Mark local asset as backed up
+## Files
 
-## Suggested technology
+- `pubspec.yaml`
+- `lib/main.dart`
+- `lib/src/app.dart`
+- `lib/src/state/app_controller.dart`
+- `lib/src/services/`
+- `lib/src/ui/home_shell.dart`
 
-- React Native or Flutter for cross-platform MVP
-- native background transfer APIs for reliable uploads
-- SQLite for local upload queue
-- Firebase Auth SDK for Google sign-in
+## Next implementation steps
 
-## MVP screens
-
-- sign in
-- backup permission onboarding
-- backup progress
-- photo timeline
-- asset detail
+1. run `flutter create .` or create platform folders if they do not exist yet
+2. add Firebase platform configuration for Android and iOS
+3. add Microsoft OAuth deep-link return handling
+4. add file picker and background upload orchestration
+5. persist app session and cached assets locally
