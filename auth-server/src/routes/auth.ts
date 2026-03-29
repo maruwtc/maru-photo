@@ -7,6 +7,7 @@ import type { AppTokenService } from "../services/app-token.js";
 import type { UserRepository } from "../repositories/users.js";
 import type { MicrosoftOAuthService } from "../services/microsoft-oauth.js";
 import type { MicrosoftAccountRepository } from "../repositories/microsoft-accounts.js";
+import type { AuditLogRepository } from "../repositories/audit-logs.js";
 
 type Options = {
   config: Config;
@@ -15,6 +16,7 @@ type Options = {
   userRepository: UserRepository;
   microsoftOAuthService: MicrosoftOAuthService;
   microsoftAccountRepository: MicrosoftAccountRepository;
+  auditLogRepository: AuditLogRepository;
 };
 
 export const authRoutes: FastifyPluginAsync<Options> = async (fastify, options) => {
@@ -35,6 +37,17 @@ export const authRoutes: FastifyPluginAsync<Options> = async (fastify, options) 
       firebaseUid: decoded.uid,
       email: decoded.email ?? null,
       provider: decoded.firebase.sign_in_provider ?? "google"
+    });
+
+    void options.auditLogRepository.log({
+      userId: user.userId,
+      actorEmail: user.email,
+      action: "user.signin",
+      resourceType: "user",
+      resourceId: user.userId,
+      metadata: { provider: decoded.firebase.sign_in_provider },
+      ipAddress: request.ip,
+      userAgent: request.headers["user-agent"]
     });
 
     return options.appTokenService.issueTokenPair(user);
@@ -101,6 +114,14 @@ export const authRoutes: FastifyPluginAsync<Options> = async (fastify, options) 
         tokenExpiresAt: account.tokenExpiresAt,
         driveId: account.drive.id,
         driveType: account.drive.driveType ?? null
+      });
+
+      void options.auditLogRepository.log({
+        userId,
+        action: "user.microsoft_connect",
+        resourceType: "microsoft_account",
+        resourceId: account.profile.id,
+        metadata: { driveType: account.drive.driveType, email: account.profile.mail }
       });
 
       return reply

@@ -26,6 +26,7 @@ export class AppTokenService {
       sub: user.userId,
       firebaseUid: user.firebaseUid,
       email: user.email,
+      isAdmin: user.isAdmin,
       aud: this.config.appJwtAudience,
       iss: this.config.appJwtIssuer,
       iat: now,

@@ -10,6 +10,7 @@ declare module "fastify" {
 
   interface FastifyInstance {
     authenticate: (request: import("fastify").FastifyRequest) => Promise<void>;
+    requireAdmin: (request: import("fastify").FastifyRequest) => Promise<void>;
   }
 }
 
@@ -35,8 +36,15 @@ const authPlugin: FastifyPluginAsync<PluginOptions> = async (fastify, options) =
     request.sessionUser = {
       userId: payload.sub,
       firebaseUid: payload.firebaseUid,
-      email: payload.email
+      email: payload.email,
+      isAdmin: payload.isAdmin ?? false
     };
+  });
+
+  fastify.decorate("requireAdmin", async (request) => {
+    if (!request.sessionUser?.isAdmin) {
+      throw fastify.httpErrors.forbidden("Admin access required");
+    }
   });
 };
 

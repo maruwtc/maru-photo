@@ -2,16 +2,29 @@ export type SessionUser = {
   userId: string;
   firebaseUid: string;
   email: string | null;
+  isAdmin: boolean;
 };
 
 export type AppTokenPayload = {
   sub: string;
   firebaseUid: string;
   email: string | null;
+  isAdmin: boolean;
   aud: string;
   iss: string;
   exp: number;
   iat: number;
+};
+
+export type UserRecord = {
+  id: string;
+  firebaseUid: string;
+  email: string | null;
+  provider: string;
+  isAdmin: boolean;
+  isDisabled: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type DeviceRecord = {
@@ -48,4 +61,25 @@ export type MicrosoftAccountRecord = {
   tokenExpiresAt: string | null;
   driveId: string | null;
   driveType: string | null;
+};
+
+export type AuditLogRecord = {
+  id: string;
+  userId: string | null;
+  actorEmail: string | null;
+  action: string;
+  resourceType: string | null;
+  resourceId: string | null;
+  metadata: Record<string, unknown> | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+};
+
+export type SystemSettingRecord = {
+  key: string;
+  value: unknown;
+  description: string | null;
+  updatedBy: string | null;
+  updatedAt: string;
 };

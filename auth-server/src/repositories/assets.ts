@@ -116,6 +116,54 @@ export class AssetRepository {
     };
   }
 
+  async deleteById(id: string): Promise<boolean> {
+    const result = await this.db.query(`DELETE FROM assets WHERE id = $1`, [id]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async listAll(opts: { page?: number | undefined; limit?: number | undefined; userId?: string | undefined; mimeType?: string | undefined } = {}): Promise<{
+    total: number;
+    assets: Array<{
+      id: string; userId: string; fileName: string; mimeType: string;
+      fileSize: number; capturedAt: string | null; status: string; createdAt: string;
+    }>;
+  }> {
+    const page = opts.page ?? 1;
+    const limit = Math.min(opts.limit ?? 50, 200);
+    const offset = (page - 1) * limit;
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (opts.userId) { params.push(opts.userId); conditions.push(`user_id = $${params.length}`); }
+    if (opts.mimeType) { params.push(`${opts.mimeType}%`); conditions.push(`mime_type LIKE $${params.length}`); }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const countResult = await this.db.query<{ count: string }>(
+      `SELECT COUNT(*) AS count FROM assets ${where}`, params
+    );
+    const total = Number(countResult.rows[0]?.count ?? 0);
+
+    params.push(limit, offset);
+    const rows = await this.db.query<{
+      id: string; user_id: string; file_name: string; mime_type: string;
+      bytes: string; capture_time: string | null; status: string; created_at: string;
+    }>(
+      `SELECT id, user_id, file_name, mime_type, bytes, capture_time, status, created_at
+       FROM assets ${where}
+       ORDER BY created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params
+    );
+
+    return {
+      total,
+      assets: rows.rows.map((r) => ({
+        id: r.id, userId: r.user_id, fileName: r.file_name, mimeType: r.mime_type,
+        fileSize: Number(r.bytes), capturedAt: r.capture_time, status: r.status, createdAt: r.created_at
+      }))
+    };
+  }
+
   async listByUser(userId: string): Promise<
     Array<{
       id: string;

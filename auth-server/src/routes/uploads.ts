@@ -6,6 +6,7 @@ import type { UploadRepository } from "../repositories/uploads.js";
 import type { AssetRepository } from "../repositories/assets.js";
 import type { MicrosoftAccountRepository } from "../repositories/microsoft-accounts.js";
 import type { GraphService } from "../services/graph.js";
+import type { AuditLogRepository } from "../repositories/audit-logs.js";
 
 type Options = {
   config: Config;
@@ -14,6 +15,7 @@ type Options = {
   assetRepository: AssetRepository;
   microsoftAccountRepository: MicrosoftAccountRepository;
   graphService: GraphService;
+  auditLogRepository: AuditLogRepository;
 };
 
 function buildStoragePath(rootFolder: string, userId: string, capturedAt: string | null, fileName: string): string {
@@ -189,6 +191,17 @@ export const uploadRoutes: FastifyPluginAsync<Options> = async (fastify, options
         mimeType: upload.mimeType,
         bytes: upload.expectedBytes,
         capturedAt: upload.capturedAt
+      });
+
+      void options.auditLogRepository.log({
+        userId: request.sessionUser!.userId,
+        actorEmail: request.sessionUser!.email,
+        action: "asset.upload",
+        resourceType: "asset",
+        resourceId: asset.id,
+        metadata: { fileName: asset.fileName, mimeType: asset.mimeType, bytes: asset.fileSize },
+        ipAddress: request.ip,
+        userAgent: request.headers["user-agent"]
       });
 
       return asset;
