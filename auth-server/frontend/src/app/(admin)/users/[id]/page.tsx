@@ -26,6 +26,7 @@ export default function UserDetailPage() {
   const [user, setUser] = useState<UserRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -59,12 +60,14 @@ export default function UserDetailPage() {
 
   async function handleDelete() {
     if (!token) return;
+    setDeleting(true);
     try {
       await createApi(token).users.delete(id);
       toast.success("User deleted");
       router.replace("/users");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Delete failed");
+      setDeleting(false);
     }
   }
 
@@ -185,8 +188,10 @@ export default function UserDetailPage() {
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
-                  <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+                  <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleting}>Cancel</Button>
+                  <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+                    {deleting ? "Deleting…" : "Delete"}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>

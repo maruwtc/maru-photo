@@ -36,6 +36,7 @@ export default function AssetsPage() {
   const [mimeType, setMimeType] = useState("");
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const debouncedUserId = useDebounce(userId, 300);
 
   const load = useCallback(async () => {
@@ -63,6 +64,7 @@ export default function AssetsPage() {
 
   async function handleDelete() {
     if (!token || !deleteId) return;
+    setDeleting(true);
     try {
       await createApi(token).assets.delete(deleteId);
       toast.success("Asset deleted");
@@ -70,6 +72,8 @@ export default function AssetsPage() {
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Delete failed");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -174,8 +178,10 @@ export default function AssetsPage() {
             <DialogDescription>This will permanently delete the asset and remove it from storage. This cannot be undone.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+            <Button variant="outline" onClick={() => setDeleteId(null)} disabled={deleting}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting ? "Deleting…" : "Delete"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

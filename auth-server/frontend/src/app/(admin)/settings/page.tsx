@@ -26,6 +26,7 @@ export default function SettingsPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteKey, setDeleteKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState<EditState>({ key: "", value: "", description: "" });
   const [isNew, setIsNew] = useState(false);
 
@@ -78,6 +79,7 @@ export default function SettingsPage() {
 
   async function handleDelete() {
     if (!token || !deleteKey) return;
+    setDeleting(true);
     try {
       await createApi(token).settings.delete(deleteKey);
       toast.success(`Setting "${deleteKey}" deleted`);
@@ -85,6 +87,8 @@ export default function SettingsPage() {
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Delete failed");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -194,8 +198,10 @@ export default function SettingsPage() {
             Are you sure you want to delete <code className="font-mono">{deleteKey}</code>? This cannot be undone.
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteKey(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+            <Button variant="outline" onClick={() => setDeleteKey(null)} disabled={deleting}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting ? "Deleting…" : "Delete"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
