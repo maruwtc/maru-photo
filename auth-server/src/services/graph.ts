@@ -63,6 +63,90 @@ export class GraphService {
     }
   }
 
+  /**
+   * Resolve the OneDrive/SharePoint item ID for a file stored at the given path.
+   * Called after upload completion so the item ID can be persisted for fast thumbnail access.
+   */
+  async resolveItemId(account: MicrosoftAccountRecord, driveId: string, storagePath: string): Promise<string | null> {
+    try {
+      const accessToken = await this.microsoftOAuthService.refreshAccessToken(account);
+      const encodedPath = storagePath.split("/").map(encodeURIComponent).join("/");
+      const url = this.buildItemUrl(driveId, encodedPath) + "?$select=id";
+      const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (!response.ok) return null;
+      const item = (await response.json()) as { id?: string };
+      return item.id ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Returns a pre-signed CDN URL for the thumbnail.
+   * Calls the Graph /thumbnails endpoint (JSON) which returns temporary CDN URLs
+   * that the client can fetch directly without auth headers.
+   * Falls back to proxying the bytes directly if the JSON endpoint doesn't return a URL.
+   */
+  async getThumbnailCdnUrl(
+    account: MicrosoftAccountRecord,
+    driveId: string,
+    driveItemId: string | null,
+    storagePath: string,
+    size: "small" | "medium" | "large" = "medium"
+  ): Promise<string | null> {
+    const accessToken = await this.microsoftOAuthService.refreshAccessToken(account);
+
+    const itemBase = driveItemId
+      ? this.buildItemUrl(driveId, undefined, driveItemId)
+      : (() => {
+          const encodedPath = storagePath.split("/").map(encodeURIComponent).join("/");
+          return this.buildItemUrl(driveId, encodedPath) + ":";
+        })();
+
+    // The /thumbnails endpoint returns JSON with pre-signed CDN URLs — no redirect chasing needed.
+    const url = `${itemBase}/thumbnails`;
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Graph thumbnails failed (${response.status}): ${text.slice(0, 300)}`);
+    }
+
+    type ThumbnailSize = { url: string; width: number; height: number };
+    type ThumbnailSet = { id: string; small?: ThumbnailSize; medium?: ThumbnailSize; large?: ThumbnailSize };
+    const data = (await response.json()) as { value: ThumbnailSet[] };
+
+    const set = data.value[0];
+    if (!set) return null;
+
+    return set[size]?.url ?? set.large?.url ?? set.medium?.url ?? set.small?.url ?? null;
+  }
+
+  /**
+   * Build a Graph item URL that is consistent with the upload session URL format.
+   * Handles both personal OneDrive and SharePoint drives.
+   *   - With itemId:  …/drives/{id}/items/{itemId}
+   *   - With path:    …/drives/{id}/root:/{encodedPath}  (caller appends :/ suffix)
+   *   - driveId "me": falls back to /me/drive/…
+   */
+  private buildItemUrl(driveId: string, encodedPath?: string, itemId?: string): string {
+    const base = "https://graph.microsoft.com/v1.0";
+
+    // Resolve the drive prefix — prefer site+drive form for SharePoint when configured
+    let drivePrefix: string;
+    if (driveId === "me") {
+      drivePrefix = `${base}/me/drive`;
+    } else if (this.config.graphSiteId && driveId === this.config.graphDriveId) {
+      drivePrefix = `${base}/sites/${this.config.graphSiteId}/drives/${driveId}`;
+    } else {
+      drivePrefix = `${base}/drives/${driveId}`;
+    }
+
+    if (itemId) return `${drivePrefix}/items/${itemId}`;
+    if (encodedPath) return `${drivePrefix}/root:/${encodedPath}`;
+    return `${drivePrefix}/root`;
+  }
+
   private buildUploadSessionUrl(account: MicrosoftAccountRecord, path: string): string {
     const encodedPath = path.split("/").map(encodeURIComponent).join("/");
     if (this.config.graphSiteId && this.config.graphDriveId) {

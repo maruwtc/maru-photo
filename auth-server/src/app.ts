@@ -83,7 +83,9 @@ export async function buildApp() {
     graphService
   });
   await app.register(assetRoutes, {
-    assetRepository
+    assetRepository,
+    microsoftAccountRepository,
+    graphService
   });
 
   return {

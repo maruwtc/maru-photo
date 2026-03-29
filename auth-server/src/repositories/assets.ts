@@ -9,6 +9,7 @@ export class AssetRepository {
     fileName: string;
     storagePath: string;
     driveId: string;
+    driveItemId?: string | null;
     sha256: string;
     mimeType: string;
     bytes: number;
@@ -36,17 +37,19 @@ export class AssetRepository {
           file_name,
           storage_path,
           drive_id,
+          drive_item_id,
           sha256,
           mime_type,
           bytes,
           capture_time,
           status
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready')
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'ready')
         ON CONFLICT (user_id, sha256)
         DO UPDATE SET
           file_name = EXCLUDED.file_name,
           storage_path = EXCLUDED.storage_path,
+          drive_item_id = COALESCE(EXCLUDED.drive_item_id, assets.drive_item_id),
           mime_type = EXCLUDED.mime_type,
           bytes = EXCLUDED.bytes,
           capture_time = EXCLUDED.capture_time,
@@ -60,6 +63,7 @@ export class AssetRepository {
         input.fileName,
         input.storagePath,
         input.driveId,
+        input.driveItemId ?? null,
         input.sha256,
         input.mimeType,
         input.bytes,
@@ -79,6 +83,36 @@ export class AssetRepository {
       fileSize: Number(row.bytes),
       capturedAt: row.capture_time,
       status: row.status
+    };
+  }
+
+  async getByIdForUser(id: string, userId: string): Promise<{
+    id: string;
+    driveId: string;
+    driveItemId: string | null;
+    storagePath: string;
+    mimeType: string;
+  } | null> {
+    const result = await this.db.query<{
+      id: string;
+      drive_id: string;
+      drive_item_id: string | null;
+      storage_path: string;
+      mime_type: string;
+    }>(
+      `SELECT id, drive_id, drive_item_id, storage_path, mime_type
+       FROM assets
+       WHERE id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      id: row.id,
+      driveId: row.drive_id,
+      driveItemId: row.drive_item_id,
+      storagePath: row.storage_path,
+      mimeType: row.mime_type
     };
   }
 

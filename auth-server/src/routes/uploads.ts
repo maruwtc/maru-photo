@@ -167,13 +167,24 @@ export const uploadRoutes: FastifyPluginAsync<Options> = async (fastify, options
 
       await options.uploadRepository.complete(upload.id);
 
+      const driveId = options.config.graphDriveId || microsoftAccount.driveId || "me";
+
+      // Resolve the OneDrive item ID so thumbnails can be fetched by item ID rather
+      // than by path (more reliable, especially on SharePoint document libraries).
+      const driveItemId = await options.graphService.resolveItemId(
+        microsoftAccount,
+        driveId,
+        upload.graphItemPath
+      );
+
       const fileName = path.posix.basename(upload.graphItemPath);
       const asset = await options.assetRepository.create({
         userId: request.sessionUser!.userId,
         deviceId: upload.deviceUuid,
         fileName,
         storagePath: upload.graphItemPath,
-        driveId: options.config.graphDriveId || microsoftAccount.driveId || "me",
+        driveId,
+        driveItemId,
         sha256: upload.sha256,
         mimeType: upload.mimeType,
         bytes: upload.expectedBytes,
