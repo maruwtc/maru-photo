@@ -7,7 +7,13 @@ type CreateUploadSessionResponse = {
   expirationDateTime: string;
 };
 
+// Thumbnail CDN URLs from Graph are pre-signed and valid for ~1 hour.
+// Cache them to avoid hitting the Graph API on every thumbnail request.
+type CachedUrl = { url: string; expiresAt: number };
+
 export class GraphService {
+  private readonly _thumbnailCache = new Map<string, CachedUrl>();
+
   constructor(
     private readonly config: Config,
     private readonly microsoftOAuthService: MicrosoftOAuthService
@@ -94,6 +100,11 @@ export class GraphService {
     storagePath: string,
     size: "small" | "medium" | "large" = "medium"
   ): Promise<string | null> {
+    // Return cached URL if still valid (leave a 5 min buffer before the ~1h expiry)
+    const cacheKey = `${driveItemId ?? storagePath}:${size}`;
+    const cached = this._thumbnailCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.url;
+
     const accessToken = await this.microsoftOAuthService.refreshAccessToken(account);
 
     const itemBase = driveItemId
@@ -104,8 +115,8 @@ export class GraphService {
         })();
 
     // The /thumbnails endpoint returns JSON with pre-signed CDN URLs — no redirect chasing needed.
-    const url = `${itemBase}/thumbnails`;
-    const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const thumbnailsEndpoint = `${itemBase}/thumbnails`;
+    const response = await fetch(thumbnailsEndpoint, { headers: { Authorization: `Bearer ${accessToken}` } });
 
     if (!response.ok) {
       const text = await response.text();
@@ -119,7 +130,12 @@ export class GraphService {
     const set = data.value[0];
     if (!set) return null;
 
-    return set[size]?.url ?? set.large?.url ?? set.medium?.url ?? set.small?.url ?? null;
+    const url = set[size]?.url ?? set.large?.url ?? set.medium?.url ?? set.small?.url ?? null;
+    if (url) {
+      // Cache for 55 minutes (Graph CDN URLs are valid ~1h; 5 min buffer)
+      this._thumbnailCache.set(cacheKey, { url, expiresAt: Date.now() + 55 * 60 * 1000 });
+    }
+    return url;
   }
 
   /**

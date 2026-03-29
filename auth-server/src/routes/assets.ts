@@ -65,6 +65,8 @@ export const assetRoutes: FastifyPluginAsync<Options> = async (fastify, options)
       }
 
       // Redirect client directly to the CDN — avoids byte-streaming through the backend.
+      // Cache-Control lets cached_network_image on the client reuse the redirect for 55 min.
+      reply.header("Cache-Control", "private, max-age=3300");
       return reply.redirect(cdnUrl, 302);
     }
   );
