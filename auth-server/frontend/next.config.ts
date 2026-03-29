@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname, '../../'), // Adjust the path as needed to point to the correct root
   },
+  allowedDevOrigins: ["*"],
 };
 
 export default nextConfig;
