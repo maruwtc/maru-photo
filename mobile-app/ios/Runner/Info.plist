@@ -37,6 +37,10 @@
 	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>MaruPhoto needs access to your photo library to back up your photos and videos.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>MaruPhoto needs access to save photos to your library.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

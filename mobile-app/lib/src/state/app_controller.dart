@@ -1,8 +1,12 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:photo_manager/photo_manager.dart';
+
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_models.dart';
 import '../services/auth_service.dart';
+import '../services/auto_backup_service.dart';
 import '../services/upload_service.dart';
 
 class AppController extends ChangeNotifier {
@@ -27,10 +31,40 @@ class AppController extends ChangeNotifier {
   List<AssetItem> assets = const [];
   List<BackupQueueItem> queue = const [];
   String? firebaseEmail;
+  String? firebasePhotoUrl;
+
+  // Auto-backup
+  bool autoBackupEnabled = false;
+  DateTime? lastAutoBackupTime;
+
+  // Appearance
+  ThemeMode themeMode = ThemeMode.system;
 
   Future<void> bootstrap() async {
+    autoBackupEnabled = await AutoBackupService.isEnabled();
+    lastAutoBackupTime = await AutoBackupService.getLastBackupTime();
+    themeMode = await _loadThemeMode();
     isBootstrapping = false;
     notifyListeners();
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    themeMode = mode;
+    notifyListeners();
+    final p = await SharedPreferences.getInstance();
+    await p.setString('theme_mode', mode.name);
+  }
+
+  static Future<ThemeMode> _loadThemeMode() async {
+    final p = await SharedPreferences.getInstance();
+    switch (p.getString('theme_mode')) {
+      case 'light':
+        return ThemeMode.light;
+      case 'dark':
+        return ThemeMode.dark;
+      default:
+        return ThemeMode.system;
+    }
   }
 
   Future<void> signInFlow() async {
@@ -45,6 +79,7 @@ class AppController extends ChangeNotifier {
         _authService.signInWithGoogle,
       );
       firebaseEmail = credential.user?.email;
+      firebasePhotoUrl = credential.user?.photoURL;
       session = await _runStep(
         'Verifying app session with backend',
         _authService.exchangeFirebaseToken,
@@ -61,6 +96,8 @@ class AppController extends ChangeNotifier {
         'Loading your library',
         () => _uploadService.fetchAssets(session!.accessToken),
       );
+      // Persist token for background auto-backup task
+      await AutoBackupService.saveToken(session!.accessToken);
       signInStatusMessage = 'Ready';
     } catch (error) {
       errorMessage = _normalizeErrorMessage(error);
@@ -92,6 +129,35 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  Future<void> toggleAutoBackup() async {
+    if (autoBackupEnabled) {
+      await AutoBackupService.disable();
+      autoBackupEnabled = false;
+      notifyListeners();
+      return;
+    }
+
+    // Request photo library permission first
+    final permission = await AutoBackupService.requestPermission();
+    if (!permission.isAuth) {
+      errorMessage = 'Photo library access is required for auto-backup. '
+          'Grant it in Settings → App Permissions.';
+      notifyListeners();
+      return;
+    }
+
+    if (session == null) {
+      errorMessage = 'Sign in before enabling auto-backup.';
+      notifyListeners();
+      return;
+    }
+
+    await AutoBackupService.enable(session!.accessToken);
+    autoBackupEnabled = true;
+    lastAutoBackupTime = await AutoBackupService.getLastBackupTime();
+    notifyListeners();
+  }
+
   Future<void> pickFilesForUpload() async {
     errorMessage = null;
     final selected = await _uploadService.pickFiles();
@@ -101,6 +167,11 @@ class AppController extends ChangeNotifier {
 
     queue = [...selected, ...queue];
     notifyListeners();
+
+    // Auto-start upload immediately if already signed in.
+    if (session != null) {
+      unawaited(uploadPendingQueue());
+    }
   }
 
   Future<void> uploadPendingQueue() async {
@@ -110,11 +181,10 @@ class AppController extends ChangeNotifier {
       return;
     }
 
-    for (final item in queue) {
-      if (item.status == 'done') {
-        continue;
-      }
+    // Snapshot the items to process so new additions mid-upload don't interfere.
+    final pending = queue.where((q) => q.status != 'done' && q.status != 'failed').toList();
 
+    for (final item in pending) {
       try {
         await _uploadService.uploadQueueItem(
           accessToken: session!.accessToken,
@@ -130,7 +200,7 @@ class AppController extends ChangeNotifier {
         );
         errorMessage = _normalizeErrorMessage(error);
         notifyListeners();
-        return;
+        // Continue with the next file rather than aborting the whole queue.
       }
     }
 

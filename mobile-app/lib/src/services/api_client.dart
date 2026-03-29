@@ -57,7 +57,21 @@ class ApiClient {
 
     final streamed = await request.send();
     final response = await http.Response.fromStream(streamed);
-    final decodedBody = response.body.isEmpty ? null : jsonDecode(response.body);
+
+    dynamic decodedBody;
+    if (response.body.isNotEmpty) {
+      try {
+        decodedBody = jsonDecode(response.body);
+      } on FormatException {
+        // Server returned non-JSON (e.g. HTML error page or plain text).
+        // Treat as a failed request with the raw body as the message.
+        throw ApiException(
+          statusCode: response.statusCode,
+          message: 'Unexpected response from server (status ${response.statusCode}): '
+              '${response.body.length > 200 ? '${response.body.substring(0, 200)}…' : response.body}',
+        );
+      }
+    }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException(

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data' show Uint8List;
 
 import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
@@ -77,8 +78,7 @@ class UploadService {
     }
 
     onUpdate(item.copyWith(status: 'hashing', message: 'Calculating SHA-256', progress: 0.08));
-    final fileBytes = await file.readAsBytes();
-    final sha256Hex = sha256.convert(fileBytes).toString();
+    final sha256Hex = await _streamingSha256(file);
     final mimeType = lookupMimeType(item.localPath) ?? 'application/octet-stream';
 
     onUpdate(item.copyWith(status: 'starting', message: 'Creating upload session', progress: 0.15));
@@ -97,13 +97,13 @@ class UploadService {
 
     final uploadId = initiate['uploadId'] as String;
     final chunkSize = (initiate['chunkSize'] as num).toInt();
+    final fileSize = item.fileSize;
     var start = 0;
 
-    onUpdate(item.copyWith(status: 'uploading', message: 'Uploading chunks', progress: 0.2));
-    while (start < fileBytes.length) {
-      final endExclusive = (start + chunkSize).clamp(0, fileBytes.length);
-      final chunk = fileBytes.sublist(start, endExclusive);
-      final contentRange = 'bytes $start-${endExclusive - 1}/${fileBytes.length}';
+    onUpdate(item.copyWith(status: 'uploading', message: 'Uploading', progress: 0.2));
+    await for (final chunk in _readChunks(file, chunkSize)) {
+      final endExclusive = start + chunk.length;
+      final contentRange = 'bytes $start-${endExclusive - 1}/$fileSize';
 
       await _putChunk(
         path: '/v1/uploads/$uploadId/chunk',
@@ -113,11 +113,11 @@ class UploadService {
       );
 
       start = endExclusive;
-      final progress = 0.2 + ((start / fileBytes.length) * 0.72);
+      final progress = 0.2 + ((start / fileSize) * 0.72);
       onUpdate(
         item.copyWith(
           status: 'uploading',
-          message: 'Uploaded ${_formatBytes(start)} of ${_formatBytes(fileBytes.length)}',
+          message: 'Uploaded ${_formatBytes(start)} of ${_formatBytes(fileSize)}',
           progress: progress.clamp(0, 0.92),
         ),
       );
@@ -166,6 +166,33 @@ class UploadService {
       }
       throw UploadFlowException(message);
     }
+  }
+}
+
+/// Computes SHA-256 by streaming the file in chunks — no full file in memory.
+Future<String> _streamingSha256(File file) async {
+  Digest? result;
+  final sink = sha256.startChunkedConversion(
+    ChunkedConversionSink<Digest>.withCallback((accumulated) => result = accumulated.first),
+  );
+  await for (final chunk in file.openRead()) {
+    sink.add(chunk);
+  }
+  sink.close();
+  return result!.toString();
+}
+
+/// Streams the file in fixed-size chunks without loading the whole file.
+Stream<Uint8List> _readChunks(File file, int chunkSize) async* {
+  final raf = await file.open();
+  try {
+    while (true) {
+      final chunk = await raf.read(chunkSize);
+      if (chunk.isEmpty) break;
+      yield chunk;
+    }
+  } finally {
+    await raf.close();
   }
 }
 

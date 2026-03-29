@@ -37,6 +37,8 @@ class _MaruPhotoAppState extends State<MaruPhotoApp> {
           title: 'MaruPhoto',
           debugShowCheckedModeBanner: false,
           theme: buildMaruTheme(),
+          darkTheme: buildMaruTheme(brightness: Brightness.dark),
+          themeMode: _controller.themeMode,
           home: HomeShell(controller: _controller),
         );
       },
