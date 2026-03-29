@@ -22,7 +22,7 @@ import { useDebounce } from "@/lib/hooks";
 
 const PAGE_SIZE = 20;
 const MIME_OPTIONS = [
-  { label: "All types", value: "" },
+  { label: "All types", value: "all" },
   { label: "Images", value: "image/" },
   { label: "Videos", value: "video/" },
 ];
@@ -33,7 +33,7 @@ export default function AssetsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [userId, setUserId] = useState("");
-  const [mimeType, setMimeType] = useState("");
+  const [mimeType, setMimeType] = useState("all");
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -48,7 +48,7 @@ export default function AssetsPage() {
         page,
         limit: PAGE_SIZE,
         userId: debouncedUserId || undefined,
-        mimeType: mimeType || undefined,
+        mimeType: mimeType !== "all" ? mimeType : undefined,
       });
       setAssets(res.assets);
       setTotal(res.total);

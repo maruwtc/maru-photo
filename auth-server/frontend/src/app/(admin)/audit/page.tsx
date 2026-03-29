@@ -19,14 +19,14 @@ import { useDebounce } from "@/lib/hooks";
 const PAGE_SIZE = 30;
 
 const ACTION_OPTIONS = [
-  { label: "All actions", value: "" },
+  { label: "All actions", value: "all" },
   { label: "user.signin", value: "user.signin" },
   { label: "user.microsoft_connect", value: "user.microsoft_connect" },
   { label: "asset.upload", value: "asset.upload" },
 ];
 
 const RESOURCE_OPTIONS = [
-  { label: "All resources", value: "" },
+  { label: "All resources", value: "all" },
   { label: "user", value: "user" },
   { label: "asset", value: "asset" },
 ];
@@ -43,8 +43,8 @@ export default function AuditPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [userId, setUserId] = useState("");
-  const [action, setAction] = useState("");
-  const [resourceType, setResourceType] = useState("");
+  const [action, setAction] = useState("all");
+  const [resourceType, setResourceType] = useState("all");
   const [loading, setLoading] = useState(true);
   const debouncedUserId = useDebounce(userId, 300);
 
@@ -56,8 +56,8 @@ export default function AuditPage() {
       const res = await api.audit.list({
         page, limit: PAGE_SIZE,
         userId: debouncedUserId || undefined,
-        action: action || undefined,
-        resourceType: resourceType || undefined,
+        action: action !== "all" ? action : undefined,
+        resourceType: resourceType !== "all" ? resourceType : undefined,
       });
       setLogs(res.logs);
       setTotal(res.total);
